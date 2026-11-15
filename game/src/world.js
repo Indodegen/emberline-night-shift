@@ -173,18 +173,21 @@ export function createWorld(scene) {
     pole.position.set(x, 2.7, z);
     pole.castShadow = true;
     group.add(pole);
-    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.accent), 26, 16, 1.8);
+    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.accent), 30, 16, 1.8);
     lamp.position.set(x, 5.2, z);
     scene.add(lamp);
   }
-  const gantryLamp = new THREE.PointLight(new THREE.Color(PALETTE.beacon), 30, 14, 1.6);
+  const gantryLamp = new THREE.PointLight(new THREE.Color(PALETTE.beacon), 34, 14, 1.6);
   gantryLamp.position.set(0, 4.0, -2.0);
   scene.add(gantryLamp);
 
-  // Night light: a low amber moon, a cool sky fill, and a gradient sky.
-  const sky = new THREE.HemisphereLight(new THREE.Color('#2c3c5a'), new THREE.Color('#0b0e13'), 0.85);
+  // Brighter night light than the first night build: the yard must read
+  // clearly in a screenshot, so the sky fill is stronger and the lamps
+  // throw further — still dusk, still amber moon and cool fill, just no
+  // longer muddy.
+  const sky = new THREE.HemisphereLight(new THREE.Color('#36486b'), new THREE.Color('#10141d'), 1.3);
   scene.add(sky);
-  const sun = new THREE.DirectionalLight(new THREE.Color('#ffb45e'), 1.9);
+  const sun = new THREE.DirectionalLight(new THREE.Color('#ffb45e'), 2.2);
   sun.position.set(-14, 10, 12);
   sun.target.position.set(0, 0, -4);
   sun.castShadow = true;
@@ -196,7 +199,7 @@ export function createWorld(scene) {
   sun.shadow.camera.far = 60;
   sun.shadow.bias = -0.0006;
   scene.add(sun, sun.target);
-  const fill = new THREE.DirectionalLight(new THREE.Color('#5a7ba6'), 0.45);
+  const fill = new THREE.DirectionalLight(new THREE.Color('#5a7ba6'), 0.65);
   fill.position.set(10, 12, -10);
   scene.add(fill);
 
@@ -211,9 +214,13 @@ export function createWorld(scene) {
       A: { x: -17, z: -9, radius: 3.4 },
       B: { x: 17, z: -9, radius: 3.4 },
     },
+    // Five slots per team: vanguard slot 0 is the human player, slots 1-4
+    // are ASH, REX, KAI and NOVA; sentinel slots are ORIN, MIRA, DUSK,
+    // VEX and SABLE. The two new slots per team sit on open ground, clear
+    // of the spawn crates and the north hold cover.
     spawns: {
-      vanguard: [[-4, 13, 0], [0, 13.5, 0], [4, 13, 0]],
-      sentinel: [[-6, -13, Math.PI], [0, -13.5, Math.PI], [6, -13, Math.PI]],
+      vanguard: [[-4, 13, 0], [0, 13.5, 0], [4, 13, 0], [-8, 13, 0], [8, 13, 0]],
+      sentinel: [[-6, -13, Math.PI], [0, -13.5, Math.PI], [6, -13, Math.PI], [-12, -13, Math.PI], [12, -13, Math.PI]],
     },
     waypoints,
     // The beacons breathe: plates and rings swell and fade on a slow sine,

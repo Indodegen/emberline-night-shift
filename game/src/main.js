@@ -376,8 +376,11 @@ function finishShot() {
 // The four dossier frames, staged from the game's own pieces — real bot
 // positions, real sim calls, real HUD setters — so each frame reads at a
 // glance. Every value is fixed and no new randomness is drawn, so a retake
-// is identical. The balance fix (spawn grace + early window in sim.js) is
-// untouched: these presets only arrange a photograph of the game.
+// is identical. The balance fix (spawn grace + early window in sim.js)
+// keeps its shape: the 5v5 build only strengthened its player-side
+// constants (15 s window, x0.45 damage, x3 aim error) so five Sentinels do
+// not melt the player in the opening seconds. These presets only arrange
+// a photograph of the game.
 
 // 1 — cover: a contact moment at mid-east. The player holds the lane,
 // DUSK is in the crosshair, the player's shot just landed (muzzle flash,
@@ -400,9 +403,11 @@ function applyClashShot() {
   sim.state.armour = 50;
   sim.state.timer = 52;
   sim.state.spike.carrier = 'player';
-  // The enemy in the crosshair is ORIN: MIRA and DUSK died in the advance
-  // (the killfeed says so), so they stay dead and out of the frame — the
+  // The enemy in the crosshair is ORIN: the Sentinels that died in the
+  // advance (the killfeed says which) stay dead and out of the frame — the
   // bots on screen are all alive, and the feed agrees with the picture.
+  // With five Sentinels the advance kills more, so the feed may name
+  // VEX or SABLE too; only the staged bots are guaranteed in frame.
   stageBot(botByName('ORIN'), 11, -4, yawTo(11, -4, 8, 3));
   stageBot(botByName('REX'), 6, -2, yawTo(6, -2, 11, -4));
   stageBot(botByName('ASH'), -2, 6, 0);
@@ -489,8 +494,8 @@ function applyPlantShot() {
   stageBot(ash, -15, -6, yawTo(-15, -6, -10, -2));
   stageBot(botByName('ORIN'), -12, -11, yawTo(-12, -11, -10, -2));
   stageBot(botByName('REX'), -6, 2, 0);
-  // MIRA and DUSK died in the advance (the killfeed says so) and sit out
-  // of this frame, so they are left dead rather than revived on screen.
+  // Sentinels that died in the advance stay dead rather than revived on
+  // screen; VEX or SABLE may still be alive at their holds, out of frame.
   sim.state.spike.carrier = ash;
   sim.plantDone(ash); // spike planted at A; banner "SPIKE PLANTED"
   placePlayer(-10, -2, 0);
@@ -512,9 +517,9 @@ function applyPlantShot() {
   finishShot();
 }
 
-// 4 — round end: the player cleared the Sentinels, so the round ends on
-// three real kills through the sim — the killfeed and the scoreboard both
-// record them. Round 4, Vanguard takes it 3-1.
+// 4 — round end: the player cleared all five Sentinels, so the round
+// ends on five real kills through the sim — the killfeed and the
+// scoreboard both record them. Round 4, Vanguard takes it 3-1.
 function applyScoreShot() {
   shotBase();
   sim.state.phase = 'live';
@@ -529,16 +534,17 @@ function applyScoreShot() {
   rig.equip('kr7');
   rig.refill();
   hud.setPhase('live', 4);
-  for (const name of ['ORIN', 'MIRA', 'DUSK']) {
+  for (const name of ['ORIN', 'MIRA', 'DUSK', 'VEX', 'SABLE']) {
     sim.damageActor(botByName(name), 999, 'torso', playerActor, ctx);
   }
-  // The third kill ends the round: banner + scoreboard are up.
+  // The fifth kill ends the round: banner + scoreboard are up. Money is
+  // 2100 + 5 x 300 kill bonus = 3600; streak is 5.
   hud.setTimer(4);
-  hud.setMoney(3000);
+  hud.setMoney(3600);
   hud.setHealth(100, true);
   hud.setAmmo(rig.state.mag, rig.state.reserve, rig.def.name);
   hud.setCarrier('YOU');
-  hud.setStreak(3);
+  hud.setStreak(5);
   hud.setScore(3, 1);
   finishShot();
 }

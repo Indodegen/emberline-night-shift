@@ -1,28 +1,37 @@
-// The other five players: two Vanguard teammates and three Sentinel defenders.
-// Each bot is a small state machine — route, hold, engage, plant, defuse,
-// rotate — walking the waypoint graph, checking line of sight with a real
-// raycast, reacting to what it sees and hears, and firing in bursts with an
-// aim error that grows with distance and target speed. A bot never knows where
-// an enemy is unless it saw one, heard a shot, or the spike told it.
+// The other nine players: four Vanguard teammates and five Sentinel
+// defenders. Each bot is a small state machine — route, hold, engage,
+// plant, defuse, rotate — walking the waypoint graph, checking line of
+// sight with a real raycast, reacting to what it sees and hears, and
+// firing in bursts with an aim error that grows with distance and target
+// speed. A bot never knows where an enemy is unless it saw one, heard a
+// shot, or the spike told it.
 import * as THREE from 'three';
 import { moveBox } from './world.js';
 import { PALETTE } from './palette.js';
 
 const BOT_NAMES = {
-  vanguard: ['ASH', 'REX'],
-  sentinel: ['ORIN', 'MIRA', 'DUSK'],
+  vanguard: ['ASH', 'REX', 'KAI', 'NOVA'],
+  sentinel: ['ORIN', 'MIRA', 'DUSK', 'VEX', 'SABLE'],
 };
 // Roles, tied to the behaviour each bot already has: ASH carries the spike
-// (Support), REX routes to the site approach and holds it (Anchor); ORIN
-// holds the A approach (Anchor A), MIRA works the mid connectors as the
-// flanker (Flanker), DUSK holds the B approach (Anchor B). The human player
-// is the Entry. Roles are labels only — they never change a route or a hold.
+// (Support), REX routes to the site approach and holds it (Anchor), KAI
+// works the mid connectors as a second flanker (Flanker), NOVA holds the
+// other site's approach (Anchor); ORIN holds the A approach (Anchor A),
+// MIRA works the mid connectors as the flanker (Flanker), DUSK holds the
+// B approach (Anchor B), VEX works the mid-west connector as a second
+// flanker (Flanker), SABLE holds the B approach (Anchor B). The human
+// player is the Entry. Roles are labels only — they never change a route
+// or a hold.
 const BOT_ROLES = {
   ASH: 'Support',
   REX: 'Anchor',
+  KAI: 'Flanker',
+  NOVA: 'Anchor',
   ORIN: 'Anchor A',
   MIRA: 'Flanker',
   DUSK: 'Anchor B',
+  VEX: 'Flanker',
+  SABLE: 'Anchor B',
 };
 const RADIO_MIN_GAP = 8; // sim seconds between one bot's radio callouts
 const WALK_SPEED = 3.4;
@@ -193,18 +202,37 @@ export function createBots(scene, world, rng) {
       vanguard[1].route = world.route(from, targetWp);
       vanguard[1].routeIndex = 0;
     }
-    // Sentinels hold: one at each site's approach. The middle Sentinel is
-    // the flanker: it holds the mid-east connector, forward of the sites,
-    // and repositions between the connectors while it waits.
+    if (vanguard.length > 2) {
+      // KAI (Flanker) works the mid connectors, forward of the site push.
+      vanguard[2].site = site;
+      vanguard[2].flanker = true;
+      const targetWp = site === 'A' ? 18 : 19;
+      const from = world.nearestWaypoint(vanguard[2].pos.x, vanguard[2].pos.z);
+      vanguard[2].route = world.route(from, targetWp);
+      vanguard[2].routeIndex = 0;
+    }
+    if (vanguard.length > 3) {
+      // NOVA (Anchor) holds the other site's approach, covering the rotate.
+      vanguard[3].site = site;
+      const targetWp = site === 'A' ? 10 : 6;
+      const from = world.nearestWaypoint(vanguard[3].pos.x, vanguard[3].pos.z);
+      vanguard[3].route = world.route(from, targetWp);
+      vanguard[3].routeIndex = 0;
+    }
+    // Sentinels hold: ORIN at the A approach, MIRA the mid-east connector
+    // (flanker), DUSK at the B approach, VEX the mid-west connector
+    // (second flanker), SABLE the B approach. Every hold is a different
+    // waypoint, so no two defenders stack on one spot. The two flankers
+    // swap between the connectors while they wait.
     const sentinel = aliveOf('sentinel');
-    const holds = [16, 19, 17];
+    const holds = [16, 19, 17, 18, 10];
     sentinel.forEach((bot, i) => {
       const targetWp = holds[i % holds.length];
       const from = world.nearestWaypoint(bot.pos.x, bot.pos.z);
       bot.route = world.route(from, targetWp);
       bot.routeIndex = 0;
       bot.holdPoint = { x: world.waypoints[targetWp].x, z: world.waypoints[targetWp].z };
-      if (i === 1) bot.flanker = true;
+      if (i === 1 || i === 3) bot.flanker = true;
     });
   }
 

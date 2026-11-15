@@ -18,11 +18,18 @@ const ROUNDS_TO_WIN = 4;
 // damage and worse bot aim. Bot-vs-bot is untouched: these scales apply
 // only when the target is the human player, and all of them are functions
 // of sim time, so the fixed-step sim stays deterministic.
+//
+// 5v5 note: five Sentinels firing at once is ~1.7x the incoming fire of
+// the old 3v3, and the first play-test of the 5v5 build had the player dead
+// at ~10 sim-seconds of live while standing at mid — inside the old 10 s
+// window. So the window is 15 s and the early scale is stronger (x0.45
+// damage, x3 aim error) until then; after 15 s the player takes full
+// damage again, exactly as before. Nothing about bot-vs-bot changed.
 const SPAWN_GRACE_SECONDS = 5;
-const EARLY_WINDOW_SECONDS = 10;
+const EARLY_WINDOW_SECONDS = 15;
 const GRACE_DAMAGE_SCALE = 0.25;
-const EARLY_DAMAGE_SCALE = 0.7;
-const EARLY_AIM_ERROR_MUL = 2;
+const EARLY_DAMAGE_SCALE = 0.45;
+const EARLY_AIM_ERROR_MUL = 3;
 const WIN_BONUS = 1400;
 const LOSS_BONUS = 800;
 const KILL_BONUS = 300;
@@ -189,7 +196,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
   }
 
   // Damage scale for the human player, from sim time only: x0.25 for the
-  // first 5 s of the live phase (spawn grace), x0.7 until 10 s, then x1.
+  // first 5 s of the live phase (spawn grace), x0.45 until 15 s, then x1.
   // Every other target always takes full damage.
   function playerDamageScale() {
     if (state.phase !== 'live') return 1;
@@ -199,8 +206,8 @@ export function createSim({ world, rng, audio, effects, hud }) {
     return 1;
   }
 
-  // Aim-error multiplier for bots shooting at the human player: x2 for the
-  // first 10 s of the live phase, then x1. Bot-vs-bot aim is unchanged.
+  // Aim-error multiplier for bots shooting at the human player: x3 for the
+  // first 15 s of the live phase, then x1. Bot-vs-bot aim is unchanged.
   function aimErrorMul(target) {
     if (!target || !target.isPlayer || state.phase !== 'live') return 1;
     return state.time - state.liveAt < EARLY_WINDOW_SECONDS ? EARLY_AIM_ERROR_MUL : 1;

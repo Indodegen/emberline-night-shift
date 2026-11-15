@@ -7,19 +7,19 @@
 // custom properties in index.html, so the HUD and the 3D scene can never
 // drift apart.
 export const PALETTE = {
-  canvas: '#0a0d13',
-  surface: '#161b23',
-  wall: '#232932',
-  crate: '#4a3a28',
-  container: '#274b52',
+  canvas: '#0e1219',
+  surface: '#1e242f',
+  wall: '#2e3540',
+  crate: '#5d4a33',
+  container: '#315e66',
   ink: '#ece7dc',
   muted: '#8b94a0',
   accent: '#ffb02e',
   teal: '#2fd3c4',
   danger: '#e0483e',
   health: '#7fc76a',
-  bg: '#1d2735',
+  bg: '#243242',
   gunmetal: '#333a45',
   beacon: '#ffcf5c',
-  night: '#0b1020',
+  night: '#0e1424',
 };
