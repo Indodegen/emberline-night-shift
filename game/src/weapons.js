@@ -8,25 +8,25 @@ import { PALETTE } from './palette.js';
 
 export const WEAPONS = {
   p9: {
-    id: 'p9', name: 'P9 Sidearm', price: 0, mag: 12, reserve: 36,
+    id: 'p9', name: 'P9 Sidearm', price: 0, mag: 15, reserve: 45,
     damage: 26, headMul: 2, fireGap: 0.16, reloadTime: 1.4,
     spreadStill: 0.004, spreadMove: 0.02, auto: false, kick: 0.006, adsMul: 0.5,
     adsFov: 65,
   },
   kr7: {
-    id: 'kr7', name: 'KR-7 Carbine', price: 900, mag: 25, reserve: 75,
+    id: 'kr7', name: 'KR-7 Carbine', price: 900, mag: 30, reserve: 90,
     damage: 30, headMul: 3, fireGap: 0.1, reloadTime: 2.0,
     spreadStill: 0.002, spreadMove: 0.026, auto: true, kick: 0.011, adsMul: 0.42,
     adsFov: 52,
   },
   longshot: {
-    id: 'longshot', name: 'Longshot DMR', price: 1500, mag: 8, reserve: 24,
+    id: 'longshot', name: 'Longshot DMR', price: 1500, mag: 10, reserve: 30,
     damage: 72, headMul: 2, fireGap: 0.85, reloadTime: 2.6,
     spreadStill: 0.001, spreadMove: 0.02, auto: false, kick: 0.02, adsMul: 0.35,
     adsFov: 34,
   },
   frag: {
-    id: 'frag', name: 'Frag-9 Grenade', price: 300, mag: 1, reserve: 1,
+    id: 'frag', name: 'Frag-9 Grenade', price: 300, mag: 1, reserve: 2,
     damage: 90, headMul: 1, fireGap: 0.5, reloadTime: 0, spreadStill: 0,
     spreadMove: 0, auto: false, kick: 0.004, adsMul: 1,
     adsFov: 60,

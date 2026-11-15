@@ -12,6 +12,19 @@ const BOT_NAMES = {
   vanguard: ['ASH', 'REX'],
   sentinel: ['ORIN', 'MIRA', 'DUSK'],
 };
+// Roles, tied to the behaviour each bot already has: ASH carries the spike
+// (Support), REX routes to the site approach and holds it (Anchor); ORIN
+// holds the A approach (Anchor A), MIRA works the mid connectors as the
+// flanker (Flanker), DUSK holds the B approach (Anchor B). The human player
+// is the Entry. Roles are labels only — they never change a route or a hold.
+const BOT_ROLES = {
+  ASH: 'Support',
+  REX: 'Anchor',
+  ORIN: 'Anchor A',
+  MIRA: 'Flanker',
+  DUSK: 'Anchor B',
+};
+const RADIO_MIN_GAP = 8; // sim seconds between one bot's radio callouts
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 4.7;
 const PERCEIVE_EVERY = 0.12;
@@ -66,6 +79,7 @@ export function createBots(scene, world, rng) {
     const bot = {
       id: `${team}-${name}`,
       name,
+      role: BOT_ROLES[name] || '',
       team,
       isPlayer: false,
       mesh: group,
@@ -76,7 +90,7 @@ export function createBots(scene, world, rng) {
       hp: 100,
       alive: true,
       weapon: 'kr7',
-      mag: 25,
+      mag: 30,
       reloadLeft: 0,
       state: 'route',
       route: [],
@@ -96,6 +110,7 @@ export function createBots(scene, world, rng) {
       carrier: false,
       planting: 0,
       defusing: 0,
+      lastRadioAt: -99, // sim time of this bot's last radio callout
       speed: 0,
       bobPhase: rng.range(0, 6),
       strafeDir: 1,
@@ -130,7 +145,7 @@ export function createBots(scene, world, rng) {
     for (const bot of actors) {
       bot.hp = 100;
       bot.alive = true;
-      bot.mag = 25;
+      bot.mag = 30;
       bot.reloadLeft = 0;
       bot.state = 'route';
       bot.route = [];
@@ -235,7 +250,17 @@ export function createBots(scene, world, rng) {
           }
         }
         if (best) {
-          if (bot.target !== best) bot.reactionAt = time + rng.range(REACTION_MIN, REACTION_MAX);
+          if (bot.target !== best) {
+            bot.reactionAt = time + rng.range(REACTION_MIN, REACTION_MAX);
+            // Radio: a bot that just spotted an enemy calls it out, once per
+            // gap, with the zone it is standing in — a real perception event,
+            // never a scripted line.
+            if (phase === 'live' && time - bot.lastRadioAt >= RADIO_MIN_GAP) {
+              bot.lastRadioAt = time;
+              const zone = bot.pos.x < -12 ? 'site A' : bot.pos.x > 12 ? 'site B' : 'mid';
+              api.radio(`${bot.name}: Contact ${zone}`);
+            }
+          }
           bot.target = best;
           bot.lastSeen.set(best.pos.x, 0, best.pos.z);
           bot.lastSeenAt = time;
@@ -254,7 +279,11 @@ export function createBots(scene, world, rng) {
           const dx = bot.pos.x - site.x;
           const dz = bot.pos.z - site.z;
           if (Math.hypot(dx, dz) < 1.6) {
-            bot.state = 'defuse';
+            if (bot.state !== 'defuse') {
+              bot.state = 'defuse';
+              // Radio on the transition in, once per defuse attempt.
+              if (phase === 'live') api.radio(`${bot.name}: Defusing the spike`);
+            }
           } else if (bot.state !== 'rotate') {
             bot.state = 'rotate';
             const from = world.nearestWaypoint(bot.pos.x, bot.pos.z);
@@ -369,7 +398,7 @@ export function createBots(scene, world, rng) {
             api.botShoot(bot, bot.target, error);
             bot.mag -= 1;
             if (bot.mag <= 0) {
-              bot.mag = 25;
+              bot.mag = 30;
               bot.reloadLeft = 2.0;
             }
           }

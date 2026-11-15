@@ -81,6 +81,7 @@ const sim = createSim({ world, rng, audio, effects, hud });
 const playerActor = {
   id: 'vanguard-YOU',
   name: 'YOU',
+  role: 'Entry',
   team: 'vanguard',
   isPlayer: true,
   pos: player.state.position,
@@ -201,6 +202,7 @@ const botApi = {
   los,
   playerSpeed: () => player.groundSpeed(),
   botShoot,
+  radio: (text) => hud.radio(text),
   aimErrorMul: (target) => sim.aimErrorMul(target),
   plantTick: (bot, progress) => sim.plantTick(bot, progress),
   plantDone: (bot) => sim.plantDone(bot),
@@ -348,7 +350,24 @@ function shotBase() {
   hud.hideBanner();
 }
 
+function updateMinimap() {
+  // Feed the HUD minimap the live picture: the player's position and yaw,
+  // every actor's position/team/alive, and the spike — all from sim state.
+  hud.setMap({
+    bounds: world.bounds,
+    sites: world.sites,
+    spike: sim.state.spike,
+    actors: actors.map((a) => ({
+      x: a.pos.x, z: a.pos.z,
+      // The player's yaw lives in the movement module, not the actor record.
+      yaw: a.isPlayer ? player.state.yaw : (a.yaw || 0),
+      team: a.team, alive: a.alive, isPlayer: !!a.isPlayer,
+    })),
+  });
+}
+
 function finishShot() {
+  updateMinimap();
   world.pulse(sim.state.time);
   renderOnce();
   document.title = 'ready';
@@ -375,7 +394,10 @@ function applyClashShot() {
   sim.state.round = 2;
   sim.state.score.vanguard = 1;
   sim.state.score.sentinel = 0;
-  sim.state.money = 1300; // 800 + 1400 win bonus − 900 KR-7
+  // 800 + 1400 win bonus − 900 KR-7 − 500 armour (bought in round 1 and kept,
+  // the player survived): the cover shows the armour chip in the HUD.
+  sim.state.money = 800;
+  sim.state.armour = 50;
   sim.state.timer = 52;
   sim.state.spike.carrier = 'player';
   // The enemy in the crosshair is ORIN: MIRA and DUSK died in the advance
@@ -406,8 +428,9 @@ function applyClashShot() {
   effects.impact(new THREE.Vector3(rex.pos.x, rex.pos.y + 1.3, rex.pos.z), 8);
   hud.setPhase('live', 2);
   hud.setTimer(52);
-  hud.setMoney(1300);
+  hud.setMoney(800);
   hud.setHealth(100, true);
+  hud.setArmour(50);
   hud.setAmmo(rig.state.mag, rig.state.reserve, rig.def.name);
   hud.setCarrier('YOU');
   hud.setStreak(0);
@@ -416,7 +439,8 @@ function applyClashShot() {
 }
 
 // 2 — buy phase: round 2, Vanguard up 1-0, $2,200 to spend, the buy menu
-// readable over the yard. The player has not bought yet (P9 in hand).
+// readable over the yard. The player buys armour ($500) for real through
+// the sim, so the menu shows it owned and the HUD shows the armour chip.
 function applyBuyShot() {
   shotBase();
   sim.state.phase = 'live';
@@ -434,15 +458,16 @@ function applyBuyShot() {
   placePlayer(-4, 13, 0.05);
   rig.equip('p9');
   rig.refill();
+  sim.buy('armour', ctx); // 2200 − 500 = 1700, armour 50, menu marks it owned
   hud.setPhase('buy', 2);
   hud.setTimer(12);
-  hud.setMoney(2200);
+  hud.setMoney(1700);
   hud.setHealth(100, true);
   hud.setAmmo(rig.state.mag, rig.state.reserve, rig.def.name);
   hud.setCarrier('YOU');
   hud.setStreak(0);
   hud.setScore(1, 0);
-  hud.showBuy(true, 2200, { kr7: false, longshot: false, frag: 0 });
+  hud.showBuy(true, 1700, { kr7: false, longshot: false, frag: 0 }, 50);
   finishShot();
 }
 
@@ -584,6 +609,7 @@ function loop() {
     const spread = rig.spread(player.groundSpeed(), input.state.ads, player.state.crouching);
     document.documentElement.style.setProperty('--spread', `${Math.round(6 + spread * 900)}px`);
     hud.setHealth(playerActor.hp, playerActor.alive);
+    updateMinimap();
   }
   world.pulse(sim.state.time);
   effects.step(dt);

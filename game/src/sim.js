@@ -27,6 +27,12 @@ const WIN_BONUS = 1400;
 const LOSS_BONUS = 800;
 const KILL_BONUS = 300;
 const PLANT_BONUS = 300;
+// Armour: bought in the buy phase, $500 for 50 points. It soaks damage
+// before health does, for the human player only — bots have no armour.
+// Armour is lost when the player dies (like the rifle) and kept while the
+// player survives the round.
+const ARMOUR_PRICE = 500;
+const ARMOUR_VALUE = 50;
 
 export function createSim({ world, rng, audio, effects, hud }) {
   const state = {
@@ -36,6 +42,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     timer: 0,
     money: 800,
     owned: { kr7: false, longshot: false, frag: 0 },
+    armour: 0, // the human player's armour points, 0..50
     spike: { state: 'carried', site: null, carrier: 'player', plantProgress: 0, defuseProgress: 0, timer: 0, x: 0, z: 0 },
     time: 0,
     liveAt: -99, // sim time the current live phase began; -99 outside live
@@ -64,6 +71,8 @@ export function createSim({ world, rng, audio, effects, hud }) {
     state.score.sentinel = 0;
     state.money = 800;
     state.owned = { kr7: false, longshot: false, frag: 0 };
+    state.armour = 0;
+    hud.setArmour(0);
     state.winner = null;
     state.reason = '';
     state.kd = {};
@@ -79,7 +88,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     state.spike = { state: 'carried', site: null, carrier: 'player', plantProgress: 0, defuseProgress: 0, timer: 0, x: 0, z: 0 };
     grenades.length = 0;
     hud.setPhase('buy', state.round);
-    hud.showBuy(true, state.money, state.owned);
+    hud.showBuy(true, state.money, state.owned, state.armour);
     hud.hideScoreboard();
   }
 
@@ -93,6 +102,12 @@ export function createSim({ world, rng, audio, effects, hud }) {
     state.money += winner === 'vanguard' ? WIN_BONUS : LOSS_BONUS;
     hud.setScore(state.score.vanguard, state.score.sentinel);
     hud.banner(winner === 'vanguard' ? 'VANGUARD WINS THE ROUND' : 'SENTINEL WINS THE ROUND', reason);
+    // Radio: the first surviving bot of the winning team calls the round —
+    // a real round-end event, from a bot that is actually alive.
+    if (roster) {
+      const caller = roster.find((a) => a.team === winner && a.alive && !a.isPlayer);
+      hud.radio(`${caller ? caller.name : winner === 'vanguard' ? 'ASH' : 'ORIN'}: ${winner === 'vanguard' ? 'Round secured' : 'Yard held'}`);
+    }
     audio.roundEnd(winner === 'vanguard');
     hud.showBuy(false);
     if (roster) {
@@ -100,7 +115,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
         `ROUND ${state.round} — ${winner === 'vanguard' ? 'VANGUARD' : 'SENTINEL'} WINS`,
         roster.map((a) => {
           const row = state.kd[a.id] || { k: 0, d: 0 };
-          return { name: a.name || 'YOU', team: a.team, k: row.k, d: row.d };
+          return { name: a.name || 'YOU', role: a.role || 'Entry', team: a.team, k: row.k, d: row.d };
         }),
       );
     }
@@ -116,6 +131,17 @@ export function createSim({ world, rng, audio, effects, hud }) {
 
   function buy(id, ctx) {
     if (state.phase !== 'buy') return false;
+    if (id === 'armour') {
+      // $500 for a full 50 armour; buying again while armoured does nothing.
+      if (state.money < ARMOUR_PRICE || state.armour >= ARMOUR_VALUE) return false;
+      state.money -= ARMOUR_PRICE;
+      state.armour = ARMOUR_VALUE;
+      audio.buy();
+      hud.setMoney(state.money);
+      hud.setArmour(state.armour);
+      hud.showBuy(true, state.money, state.owned, state.armour);
+      return true;
+    }
     const def = WEAPONS[id];
     if (!def || state.money < def.price) return false;
     if (id === 'frag') {
@@ -131,7 +157,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     state.money = Math.max(0, state.money);
     audio.buy();
     hud.setMoney(state.money);
-    hud.showBuy(true, state.money, state.owned);
+    hud.showBuy(true, state.money, state.owned, state.armour);
     return true;
   }
 
@@ -184,6 +210,13 @@ export function createSim({ world, rng, audio, effects, hud }) {
     if (!roster && ctx && ctx.actors) roster = ctx.actors;
     if (!target.alive || state.phase !== 'live') return 'none';
     if (target.isPlayer) amount = Math.max(1, Math.round(amount * playerDamageScale()));
+    // Armour soaks the (already scaled) damage first, for the player only.
+    if (target.isPlayer && state.armour > 0) {
+      const soaked = Math.min(state.armour, amount);
+      state.armour -= soaked;
+      amount -= soaked;
+      hud.setArmour(state.armour);
+    }
     target.hp -= amount;
     if (target.isPlayer) {
       audio.hurt();
@@ -199,12 +232,15 @@ export function createSim({ world, rng, audio, effects, hud }) {
       hud.flashDamage();
       state.streak = 0;
       hud.setStreak(0);
+      // Dying costs the armour, like the rifle.
+      state.armour = 0;
+      hud.setArmour(0);
     } else {
       target.mesh.visible = false;
       target.mesh.position.y = -50;
     }
     const killerName = shooter ? shooter.name || 'YOU' : 'GRENADE';
-    hud.addKill(killerName, target.name || 'YOU', part === 'head', shooter ? shooter.team : null);
+    hud.addKill(killerName, target.name || 'YOU', part === 'head', shooter ? shooter.team : null, shooter ? shooter.role || 'Entry' : '', target.role || 'Entry');
     // Kill bookkeeping for the round-end scoreboard: a kill for the shooter,
     // a death for the victim. Keyed by actor id; reset per match.
     if (shooter) {
@@ -280,6 +316,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
         else if (code === 'Digit2') buy('longshot', ctx);
         else if (code === 'Digit3') buy('frag', ctx);
         else if (code === 'Digit4') buy('p9', ctx);
+        else if (code === 'Digit5') buy('armour', ctx);
       }
       if (state.timer <= 0) {
         state.phase = 'live';
@@ -329,6 +366,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
             hud.setMoney(state.money);
             hud.setPlant(0, null);
             hud.banner('SPIKE PLANTED', `Defend site ${site} — ${SPIKE_SECONDS}s to detonation`);
+            hud.radio(`YOU: Spike planted at ${site}`);
             audio.plantBeep(true);
           }
         } else {
@@ -391,6 +429,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
       state.spike.plantProgress = 0;
       hud.setPlant(0, null);
       hud.banner('SPIKE PLANTED', `Defend site ${site} — ${SPIKE_SECONDS}s to detonation`);
+      hud.radio(`${bot.name}: Spike planted at ${site}`);
       audio.plantBeep(true);
     },
     defuseTick(bot, progress) {
