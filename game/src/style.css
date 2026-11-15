@@ -82,10 +82,12 @@ canvas#scene { display: block; width: 100%; height: 100%; }
 .buymenu { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(10, 12, 16, 0.88); border: 1px solid rgba(255, 176, 46, 0.4); border-radius: 10px; padding: 18px 22px; min-width: 360px; }
 .buymenu h3 { letter-spacing: 2px; color: #ffb02e; margin-bottom: 10px; font-size: 15px; }
 
-/* Round-end scoreboard: same panel language as the buy menu. */
-.scoreboard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(10, 12, 16, 0.88); border: 1px solid rgba(255, 176, 46, 0.4); border-radius: 10px; padding: 18px 22px; min-width: 380px; }
+/* Round-end scoreboard: same panel language as the buy menu. It sits
+   lower than centre (60%) so the round-end banner and its sub-line above
+   it stay fully readable — the panel used to cover the banner's middle. */
+.scoreboard { position: absolute; left: 50%; top: 60%; transform: translate(-50%, -50%); background: rgba(10, 12, 16, 0.88); border: 1px solid rgba(255, 176, 46, 0.4); border-radius: 10px; padding: 18px 22px; min-width: 380px; }
 .scoreboard h3 { letter-spacing: 2px; color: #ffb02e; margin-bottom: 10px; font-size: 15px; text-align: center; }
-.boardrow { display: flex; justify-content: space-between; gap: 18px; padding: 7px 4px; border-bottom: 1px solid rgba(236,231,220,0.08); font-size: 14px; }
+.boardrow { display: flex; justify-content: space-between; gap: 18px; padding: 6px 4px; border-bottom: 1px solid rgba(236,231,220,0.08); font-size: 14px; }
 .boardrow:last-child { border-bottom: none; }
 .boardrow b.van { color: #ffb02e; }
 .boardrow b.sen { color: #2fd3c4; }

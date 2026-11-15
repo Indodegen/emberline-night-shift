@@ -34,6 +34,16 @@ const BOT_ROLES = {
   SABLE: 'Anchor B',
 };
 const RADIO_MIN_GAP = 8; // sim seconds between one bot's radio callouts
+const HEAR_DIVERT_RADIUS = 12; // a shot this close overrides a bot's route
+// The round's team plans, picked fresh in reset() from the actual
+// assignments: Vanguard pushes the chosen site (ASH carries, REX anchors
+// the approach, KAI works the mid connectors, NOVA holds the other site's
+// approach); Sentinel holds both sites with flankers on the mid
+// connectors. The Vanguard plan is radioed once at round start; the
+// Sentinel plan is the hold assignment itself. No randomness: a plan is a
+// pure function of the chosen site.
+let roundPlan = null;
+let planAnnounced = false;
 const WALK_SPEED = 3.4;
 const RUN_SPEED = 4.7;
 const PERCEIVE_EVERY = 0.12;
@@ -234,6 +244,14 @@ export function createBots(scene, world, rng) {
       bot.holdPoint = { x: world.waypoints[targetWp].x, z: world.waypoints[targetWp].z };
       if (i === 1 || i === 3) bot.flanker = true;
     });
+    // Pick this round's team plans from the assignments above, and arm the
+    // one radio callout that announces the Vanguard plan at round start.
+    const otherSite = site === 'A' ? 'B' : 'A';
+    roundPlan = {
+      vanguard: `ASH: Plan — push ${site} with REX, KAI works mid, NOVA holds ${otherSite}`,
+      sentinel: 'ORIN: Plan — hold A and B, flankers work the mid connectors',
+    };
+    planAnnounced = false;
   }
 
   function hearShot(pos, shooterTeam, time) {
@@ -255,6 +273,13 @@ export function createBots(scene, world, rng) {
 
   function step(dt, api) {
     const { time, phase, spike } = api;
+    // The round's team plan goes out once, on the first step of the round —
+    // the Vanguard plan, from its carrier, while the teams are still in the
+    // buy phase. The Sentinel plan is their hold assignment, in reset().
+    if (roundPlan && !planAnnounced && phase !== 'menu' && phase !== 'match') {
+      planAnnounced = true;
+      api.radio(roundPlan.vanguard);
+    }
     for (const bot of actors) {
       if (!bot.alive) continue;
       if (bot.reloadLeft > 0) bot.reloadLeft = Math.max(0, bot.reloadLeft - dt);
@@ -327,12 +352,25 @@ export function createBots(scene, world, rng) {
           } else if (bot.state === 'hold') {
             bot.state = 'route';
           }
-        } else if (bot.heardPos && time - bot.heardAt < 4 && bot.state !== 'route') {
-          bot.state = 'route';
-          const from = world.nearestWaypoint(bot.pos.x, bot.pos.z);
-          const to = world.nearestWaypoint(bot.heardPos.x, bot.heardPos.z);
-          bot.route = world.route(from, to);
-          bot.routeIndex = 0;
+        } else if (bot.heardPos && time - bot.heardAt < 4) {
+          // Hearing: a bot that hears gunfire turns toward the sound at
+          // once — facing the threat before it can see it — and then
+          // investigates it. The plan normally holds (a bot already
+          // routing keeps its route), but a nearby shot under 12 m
+          // overrides the route: a close gunfight beats the plan. The
+          // carrier's plant run is never diverted: its branch above
+          // matches first while the spike is carried. No new randomness:
+          // the facing and the route are pure functions of the heard
+          // position and the sim time.
+          bot.yaw = Math.atan2(-(bot.heardPos.x - bot.pos.x), -(bot.heardPos.z - bot.pos.z));
+          const heardDist = Math.hypot(bot.heardPos.x - bot.pos.x, bot.heardPos.z - bot.pos.z);
+          if (bot.state !== 'route' || heardDist < HEAR_DIVERT_RADIUS) {
+            bot.state = 'route';
+            const from = world.nearestWaypoint(bot.pos.x, bot.pos.z);
+            const to = world.nearestWaypoint(bot.heardPos.x, bot.heardPos.z);
+            bot.route = world.route(from, to);
+            bot.routeIndex = 0;
+          }
         }
       }
 

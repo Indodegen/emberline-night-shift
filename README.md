@@ -34,6 +34,7 @@ nothing here is a claim about code that does not run:
   plus four Vanguard bots against five Sentinel bots, each with a named
   role.
 - **Minimap (top-left):** a live map of the yard — both sites labelled,
+  named zones (FREIGHT HALL by site A, GANTRY at mid, DOCK by site B),
   the spike, and every living player as a dot (you are the arrow) — redrawn
   from sim state every frame.
 - **Armour:** buy $500 for 50 armour in the buy phase; it soaks damage
@@ -49,7 +50,13 @@ nothing here is a claim about code that does not run:
   $1,400 round win, $800 loss, $300 plant), four weapons (KR-7 Carbine
   30-round mag, Longshot DMR 10-round mag, Frag-9 grenade, P9 Sidearm
   15-round mag) plus armour, and bots that hold lanes, rotate on gunfire,
-  flank, plant and defuse on the same timers you do.
+  flank, plant and defuse on the same timers you do. Every round the bots
+  pick a **team plan** from their real assignments — Vanguard pushes the
+  chosen site while NOVA holds the other approach, Sentinel holds both
+  sites with flankers on the mid connectors — and the plan is radioed at
+  round start. Bots also **hear**: a bot that hears gunfire turns toward
+  the sound at once and investigates it, and a shot under 12 m overrides
+  its route — the spike carrier's plant run is never diverted.
 - **The map:** a 46 × 32 m night freight yard — site A (west, amber) and
   site B (east, teal) with pulsing beacons, three lanes, a gantry beam,
   and a 20-node waypoint graph the bots actually walk. The night lighting
@@ -134,9 +141,10 @@ within 26 m.
 
 Screenshot presets (deterministic, `?shot=<name>&seed=7`):
 
-- `clash` — the cover: a contact moment at mid-east, the enemy in the
-  crosshair, muzzle flash and tracer, minimap, armour, radio callout, full
-  HUD and the plant objective in one frame
+- `clash` — the cover: a close contact at mid-east, the enemy big in the
+  crosshair, muzzle flash and tracer, minimap with named zones, armour,
+  radio callout, full HUD — and the spike planted at A for real, banner
+  and armed-spike objective in the same frame
 - `buy` — the buy phase: the buy menu with the armour option, $1,700 left
   after buying armour, P9 in hand
 - `plant` — the spike planted at site A, banner and armed-spike objective,

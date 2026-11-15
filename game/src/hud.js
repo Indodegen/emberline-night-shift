@@ -187,6 +187,20 @@ export function createHud() {
         c.textBaseline = 'middle';
         c.fillText(name, px, py);
       }
+      // Zone names, drawn on the map so the yard reads like the top
+      // entries' minimaps ("KILN HALL / SITE A"): the west halls, the mid
+      // gantry, the east dock. Fixed positions, no state — the same labels
+      // every frame, drawn over the landmark blocks and under the actors.
+      c.fillStyle = 'rgba(236, 231, 220, 0.7)';
+      c.font = '700 7px system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      const [hallX, hallY] = mapXY(-17, -4);
+      c.fillText('FREIGHT HALL', hallX, hallY);
+      const [gantryX, gantryY] = mapXY(0, 0.5);
+      c.fillText('GANTRY', gantryX, gantryY);
+      const [dockX, dockY] = mapXY(17, -4);
+      c.fillText('DOCK', dockX, dockY);
       // The spike: a pulsing diamond where it is planted, a small dot on
       // its carrier while it is carried.
       if (data.spike) {

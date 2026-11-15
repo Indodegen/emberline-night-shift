@@ -296,6 +296,14 @@ function botByName(name) {
   return bots.actors.find((b) => b.name === name);
 }
 
+// The first Sentinel still alive after the advance — the only honest
+// enemy to stage in a frame, because the killfeed names the dead ones.
+// Picking a survivor (rather than a fixed name) keeps the feed and the
+// picture in agreement: a bot the feed says died is never staged alive.
+function firstAliveSentinel() {
+  return bots.actors.find((b) => b.team === 'sentinel' && b.alive) || botByName('ORIN');
+}
+
 function stageBot(bot, x, z, yaw) {
   // Put a bot on a mark: full health, alive, mesh synced to its sim position.
   bot.pos.set(x, 0, z);
@@ -382,10 +390,13 @@ function finishShot() {
 // not melt the player in the opening seconds. These presets only arrange
 // a photograph of the game.
 
-// 1 — cover: a contact moment at mid-east. The player holds the lane,
-// DUSK is in the crosshair, the player's shot just landed (muzzle flash,
-// impact sparks, hitmarker), and DUSK's return fire crosses the frame
-// toward REX as a tracer. Round 2, Vanguard up 1-0.
+// 1 — cover: a contact moment at mid-east, close in. The player holds
+// the lane and ORIN fills the crosshair at three metres — a big, close
+// enemy with a muzzle flash and a tracer, the way the top covers frame
+// theirs — while ASH plants the spike at A for real through the sim, so
+// the "SPIKE PLANTED" banner, the armed objective line and the minimap
+// diamond all say the same thing: the plant is happening, not just
+// instructed. Round 2, Vanguard up 1-0.
 function applyClashShot() {
   shotBase();
   sim.state.phase = 'live';
@@ -402,42 +413,52 @@ function applyClashShot() {
   sim.state.money = 800;
   sim.state.armour = 50;
   sim.state.timer = 52;
-  sim.state.spike.carrier = 'player';
-  // The enemy in the crosshair is ORIN: the Sentinels that died in the
-  // advance (the killfeed says which) stay dead and out of the frame — the
-  // bots on screen are all alive, and the feed agrees with the picture.
-  // With five Sentinels the advance kills more, so the feed may name
-  // VEX or SABLE too; only the staged bots are guaranteed in frame.
-  stageBot(botByName('ORIN'), 11, -4, yawTo(11, -4, 8, 3));
-  stageBot(botByName('REX'), 6, -2, yawTo(6, -2, 11, -4));
-  stageBot(botByName('ASH'), -2, 6, 0);
+  // ASH plants at A while the fight happens mid: planted for real through
+  // the sim, so the banner, the radio line and the armed objective all
+  // agree — and the minimap shows the planted spike diamond at A.
+  const ash = botByName('ASH');
+  ash.site = 'A';
+  stageBot(ash, -15, -6, yawTo(-15, -6, -10, -2));
+  sim.state.spike.carrier = ash;
+  sim.plantDone(ash);
+  // The enemy in the crosshair is the first surviving Sentinel, staged
+  // three metres out so he fills the frame like the top covers' enemies.
+  // The Sentinels that died in the advance stay dead and out of the frame
+  // — the bots on screen are all alive, and the feed agrees with the
+  // picture (the staged enemy is one of the feed's killers, never one of
+  // its victims).
+  const enemy = firstAliveSentinel();
+  stageBot(enemy, 10, 0.5, yawTo(10, 0.5, 8, 3));
+  stageBot(botByName('REX'), 6, -2, yawTo(6, -2, 10, 0.5));
   placePlayer(8, 3, 0);
   rig.equip('kr7');
   rig.refill();
-  // The player's shot at ORIN: muzzle flash + impact sparks on the bot.
-  aimCameraAt(11, 1.3, -4);
+  // The player's shot at the enemy: muzzle flash + impact sparks on the bot.
+  aimCameraAt(10, 1.3, 0.5);
   camera.getWorldDirection(_dir);
   _origin.copy(player.state.position);
   _origin.y += player.state.eye;
   rig.takeRound();
   rig.pullTrigger();
   applyShot(_origin, _dir, 120, playerActor, rig.def.damage, 'vanguard');
-  // ORIN's answer at REX, drawn as a tracer the camera can see.
-  const orin = botByName('ORIN');
+  // The enemy's answer at REX, drawn as a tracer the camera can see.
   const rex = botByName('REX');
   effects.tracer(
-    new THREE.Vector3(orin.pos.x, orin.pos.y + 1.55, orin.pos.z),
+    new THREE.Vector3(enemy.pos.x, enemy.pos.y + 1.55, enemy.pos.z),
     new THREE.Vector3(rex.pos.x, rex.pos.y + 1.3, rex.pos.z),
     camera.position,
   );
   effects.impact(new THREE.Vector3(rex.pos.x, rex.pos.y + 1.3, rex.pos.z), 8);
   hud.setPhase('live', 2);
+  // setSpike after setPhase: setPhase rewrites the objective line, and the
+  // armed-spike text (35s, matching the banner) must be the one that stays.
+  hud.setSpike(35, 'A');
   hud.setTimer(52);
   hud.setMoney(800);
   hud.setHealth(100, true);
   hud.setArmour(50);
   hud.setAmmo(rig.state.mag, rig.state.reserve, rig.def.name);
-  hud.setCarrier('YOU');
+  hud.setCarrier('ASH');
   hud.setStreak(0);
   hud.setScore(1, 0);
   finishShot();
@@ -477,7 +498,8 @@ function applyBuyShot() {
 }
 
 // 3 — the spike planted at A: ASH planted it, the banner and the armed
-// objective line say so, ORIN rotates in to defuse. Round 3, 1-1.
+// objective line say so, a surviving Sentinel rotates in to defuse.
+// Round 3, 1-1.
 function applyPlantShot() {
   shotBase();
   sim.state.phase = 'live';
@@ -492,7 +514,10 @@ function applyPlantShot() {
   sim.state.timer = 52;
   const ash = botByName('ASH');
   stageBot(ash, -15, -6, yawTo(-15, -6, -10, -2));
-  stageBot(botByName('ORIN'), -12, -11, yawTo(-12, -11, -10, -2));
+  // A surviving Sentinel rotates in to defuse — the first one still alive
+  // after the advance, so the feed and the picture agree (never a bot the
+  // feed says died).
+  stageBot(firstAliveSentinel(), -12, -11, yawTo(-12, -11, -10, -2));
   stageBot(botByName('REX'), -6, 2, 0);
   // Sentinels that died in the advance stay dead rather than revived on
   // screen; VEX or SABLE may still be alive at their holds, out of frame.
