@@ -1,0 +1,83 @@
+:root { --spread: 8px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0d13; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #ece7dc; }
+canvas#scene { display: block; width: 100%; height: 100%; }
+.hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+/* Crosshair — gap widens with movement spread via --spread. */
+.crosshair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.crosshair i { position: absolute; background: rgba(236, 231, 220, 0.95); box-shadow: 0 0 2px rgba(0,0,0,0.8); }
+.crosshair i:nth-child(1) { left: calc(-1px); top: calc(-1 * var(--spread) - 7px); width: 2px; height: 7px; }
+.crosshair i:nth-child(2) { left: calc(-1px); top: var(--spread); width: 2px; height: 7px; }
+.crosshair i:nth-child(3) { left: calc(-1 * var(--spread) - 7px); top: -1px; width: 7px; height: 2px; }
+.crosshair i:nth-child(4) { left: var(--spread); top: -1px; width: 7px; height: 2px; }
+.crosshair span { position: absolute; left: -1.5px; top: -1.5px; width: 3px; height: 3px; background: #ffb02e; border-radius: 50%; }
+.hitmarker { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; transition: opacity 0.12s; }
+.hitmarker.show { opacity: 1; }
+.hitmarker i { position: absolute; background: #ece7dc; width: 2px; height: 9px; }
+.hitmarker i:nth-child(1) { transform: translate(-9px, -9px) rotate(45deg); }
+.hitmarker i:nth-child(2) { transform: translate(7px, -9px) rotate(-45deg); }
+.hitmarker i:nth-child(3) { transform: translate(-9px, 7px) rotate(-45deg); }
+.hitmarker i:nth-child(4) { transform: translate(7px, 7px) rotate(45deg); }
+.hitmarker.kill i { background: #e0483e; }
+
+/* Kill streak chip, under the crosshair: only shows at ×2 or more. */
+.streak { position: absolute; left: 50%; top: calc(50% + 34px); transform: translateX(-50%); font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #ffb02e; background: rgba(10,12,16,0.62); border: 1px solid rgba(255,176,46,0.45); border-radius: 6px; padding: 4px 10px; }
+
+.damage-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(224, 72, 62, 0.55) 100%); opacity: 0; transition: opacity 0.15s; }
+.damage-flash.show { opacity: 1; }
+
+.topbar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; background: rgba(10, 12, 16, 0.62); border: 1px solid rgba(236, 231, 220, 0.14); border-radius: 8px; padding: 8px 18px; font-size: 14px; }
+.topbar .timer { font-size: 22px; font-weight: 700; color: #ffb02e; min-width: 52px; text-align: center; }
+.topbar .score b.van { color: #ffb02e; }
+.topbar .score b.sen { color: #2fd3c4; }
+.topbar .score span { margin: 0 6px; opacity: 0.5; }
+.topbar .round { opacity: 0.75; letter-spacing: 1px; }
+
+/* Round pips: four dots per team in the topbar, first to 4 wins the match. */
+.pips { display: flex; gap: 4px; align-items: center; }
+.pip { width: 8px; height: 8px; border-radius: 50%; background: rgba(236,231,220,0.18); display: inline-block; }
+.pip.van.won { background: #ffb02e; }
+.pip.sen.won { background: #2fd3c4; }
+
+.killfeed { position: absolute; top: 64px; right: 16px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.killrow { background: rgba(10, 12, 16, 0.66); border: 1px solid rgba(236, 231, 220, 0.12); border-radius: 6px; padding: 5px 10px; font-size: 13px; }
+.killrow span { opacity: 0.6; margin: 0 6px; }
+
+.announce { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity 0.4s; }
+.announce.show { opacity: 1; }
+.announce h2 { font-size: 34px; letter-spacing: 3px; color: #ffb02e; text-shadow: 0 2px 14px rgba(0,0,0,0.8); }
+.announce p { font-size: 15px; opacity: 0.85; margin-top: 6px; }
+
+.objective { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); font-size: 13px; letter-spacing: 1px; background: rgba(10,12,16,0.5); padding: 5px 12px; border-radius: 6px; opacity: 0.9; }
+.objective.danger { color: #ff8a7a; border: 1px solid rgba(224,72,62,0.5); }
+.carrier { position: absolute; top: 104px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #ffcf5c; background: rgba(10,12,16,0.55); padding: 4px 10px; border-radius: 6px; }
+
+.plantwrap { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); width: 260px; text-align: center; }
+.plantlabel { font-size: 13px; letter-spacing: 2px; margin-bottom: 6px; color: #ffb02e; }
+.plantbar { height: 8px; background: rgba(236,231,220,0.18); border-radius: 4px; overflow: hidden; }
+.plantfill { height: 100%; width: 0%; background: #ffb02e; }
+
+.bottombar { position: absolute; bottom: 18px; left: 20px; right: 20px; display: flex; align-items: flex-end; gap: 22px; }
+.bottombar .health .num { font-size: 42px; font-weight: 800; line-height: 1; }
+.bottombar .health .lbl { font-size: 13px; opacity: 0.7; margin-left: 6px; }
+.bottombar .health.low .num { color: #e0483e; }
+.bottombar .health.dead .num { color: #e0483e; }
+.bottombar .money { font-size: 22px; font-weight: 700; color: #7fc76a; }
+.bottombar .ammo { margin-left: auto; text-align: right; }
+.bottombar .ammo .num { font-size: 42px; font-weight: 800; line-height: 1; }
+.bottombar .ammo .lbl { font-size: 13px; opacity: 0.7; }
+.bottombar .hint { position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: 0.55; white-space: nowrap; }
+
+.buymenu { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(10, 12, 16, 0.88); border: 1px solid rgba(255, 176, 46, 0.4); border-radius: 10px; padding: 18px 22px; min-width: 360px; }
+.buymenu h3 { letter-spacing: 2px; color: #ffb02e; margin-bottom: 10px; font-size: 15px; }
+.buyrow { display: flex; justify-content: space-between; gap: 18px; padding: 8px 4px; border-bottom: 1px solid rgba(236,231,220,0.08); font-size: 14px; }
+.buyrow:last-child { border-bottom: none; }
+.buyrow span { opacity: 0.75; }
+.buyrow.owned b::after { content: ' ✓ OWNED'; color: #7fc76a; }
+
+.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8, 10, 14, 0.78); pointer-events: auto; text-align: center; padding: 24px; }
+.overlay h1 { font-size: 44px; letter-spacing: 5px; color: #ffb02e; text-shadow: 0 2px 20px rgba(0,0,0,0.9); }
+.overlay p { max-width: 560px; margin: 14px 0 26px; font-size: 15px; line-height: 1.6; opacity: 0.9; }
+.overlay button { pointer-events: auto; cursor: pointer; background: #ffb02e; color: #0a0d13; border: none; border-radius: 8px; padding: 14px 34px; font-size: 17px; font-weight: 800; letter-spacing: 2px; }
+.overlay button:hover { background: #ffc14d; }
