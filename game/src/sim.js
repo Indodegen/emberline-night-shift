@@ -12,6 +12,17 @@ const PLANT_SECONDS = 3.5;
 const DEFUSE_SECONDS = 5;
 const SPIKE_SECONDS = 35;
 const ROUNDS_TO_WIN = 4;
+// Early-round protection for the human player only. Bots are tuned to melt
+// a player who walks into the open in the first seconds of a round, so the
+// player gets a short grace window plus a longer window of reduced bot
+// damage and worse bot aim. Bot-vs-bot is untouched: these scales apply
+// only when the target is the human player, and all of them are functions
+// of sim time, so the fixed-step sim stays deterministic.
+const SPAWN_GRACE_SECONDS = 5;
+const EARLY_WINDOW_SECONDS = 10;
+const GRACE_DAMAGE_SCALE = 0.25;
+const EARLY_DAMAGE_SCALE = 0.7;
+const EARLY_AIM_ERROR_MUL = 2;
 const WIN_BONUS = 1400;
 const LOSS_BONUS = 800;
 const KILL_BONUS = 300;
@@ -27,6 +38,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     owned: { kr7: false, longshot: false, frag: 0 },
     spike: { state: 'carried', site: null, carrier: 'player', plantProgress: 0, defuseProgress: 0, timer: 0, x: 0, z: 0 },
     time: 0,
+    liveAt: -99, // sim time the current live phase began; -99 outside live
     winner: null,
     reason: '',
     streak: 0, // the player's kills since the last death, this round
@@ -136,8 +148,27 @@ export function createSim({ world, rng, audio, effects, hud }) {
     ctx.bots.hearShot(g.pos, null, state.time);
   }
 
+  // Damage scale for the human player, from sim time only: x0.25 for the
+  // first 5 s of the live phase (spawn grace), x0.7 until 10 s, then x1.
+  // Every other target always takes full damage.
+  function playerDamageScale() {
+    if (state.phase !== 'live') return 1;
+    const elapsed = state.time - state.liveAt;
+    if (elapsed < SPAWN_GRACE_SECONDS) return GRACE_DAMAGE_SCALE;
+    if (elapsed < EARLY_WINDOW_SECONDS) return EARLY_DAMAGE_SCALE;
+    return 1;
+  }
+
+  // Aim-error multiplier for bots shooting at the human player: x2 for the
+  // first 10 s of the live phase, then x1. Bot-vs-bot aim is unchanged.
+  function aimErrorMul(target) {
+    if (!target || !target.isPlayer || state.phase !== 'live') return 1;
+    return state.time - state.liveAt < EARLY_WINDOW_SECONDS ? EARLY_AIM_ERROR_MUL : 1;
+  }
+
   function damageActor(target, amount, part, shooter, ctx) {
     if (!target.alive || state.phase !== 'live') return 'none';
+    if (target.isPlayer) amount = Math.max(1, Math.round(amount * playerDamageScale()));
     target.hp -= amount;
     if (target.isPlayer) {
       audio.hurt();
@@ -230,6 +261,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
       if (state.timer <= 0) {
         state.phase = 'live';
         state.timer = ROUND_SECONDS;
+        state.liveAt = state.time;
         hud.setPhase('live', state.round);
         hud.showBuy(false);
         hud.banner(`ROUND ${state.round}`, state.spike.site ? '' : 'Plant the spike at A or B');
@@ -315,6 +347,10 @@ export function createSim({ world, rng, audio, effects, hud }) {
     throwGrenade,
     damageActor,
     step,
+    liveElapsed() {
+      return state.phase === 'live' ? state.time - state.liveAt : 999;
+    },
+    aimErrorMul,
     plantTick(bot, progress) {
       if (state.phase !== 'live' || state.spike.state !== 'carried') return;
       state.spike.plantProgress = progress;

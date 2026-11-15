@@ -201,6 +201,7 @@ const botApi = {
   los,
   playerSpeed: () => player.groundSpeed(),
   botShoot,
+  aimErrorMul: (target) => sim.aimErrorMul(target),
   plantTick: (bot, progress) => sim.plantTick(bot, progress),
   plantDone: (bot) => sim.plantDone(bot),
   defuseTick: (bot, progress) => sim.defuseTick(bot, progress),

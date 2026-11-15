@@ -362,7 +362,10 @@ export function createBots(scene, world, rng) {
             bot.nextShotAt = time + 0.11;
             bot.burstLeft -= 1;
             const moving = bot.target.isPlayer ? api.playerSpeed() : 2.5;
-            const error = 0.016 + dist * 0.0007 + moving * 0.0022;
+            // Early in the round, bots shooting at the human player aim
+            // worse (x2 error for the first 10 s of live); bot-vs-bot aim
+            // is unchanged. See sim.aimErrorMul.
+            const error = (0.016 + dist * 0.0007 + moving * 0.0022) * api.aimErrorMul(bot.target);
             api.botShoot(bot, bot.target, error);
             bot.mag -= 1;
             if (bot.mag <= 0) {
