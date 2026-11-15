@@ -83,6 +83,13 @@ export function createHud() {
   }
   buyMenu.style.display = 'none';
 
+  // Round-end scoreboard: names with K/D, shown when a round ends (and in
+  // the dossier's fourth screenshot). Built once, filled per round.
+  const board = el('div', 'scoreboard', root);
+  const boardTitle = el('h3', '', board);
+  const boardRows = el('div', 'boardrows', board);
+  board.style.display = 'none';
+
   const overlay = el('div', 'overlay', root);
   const overlayTitle = el('h1', '', overlay);
   const overlayText = el('p', '', overlay);
@@ -178,11 +185,31 @@ export function createHud() {
         }
       }
     },
+    showScoreboard(title, rows) {
+      if (!title || !rows) {
+        board.style.display = 'none';
+        return;
+      }
+      boardTitle.textContent = title;
+      boardRows.innerHTML = '';
+      for (const row of rows) {
+        const r = el('div', 'boardrow', boardRows);
+        r.innerHTML = `<b class="${row.team === 'vanguard' ? 'van' : 'sen'}">${row.name}</b><span>${row.k} K</span><span>${row.d} D</span>`;
+      }
+      board.style.display = 'block';
+    },
+    hideScoreboard() {
+      board.style.display = 'none';
+    },
     banner(title, sub) {
       announceTitle.textContent = title;
       announceSub.textContent = sub || '';
       announce.classList.add('show');
       bannerTimer = 3;
+    },
+    hideBanner() {
+      announce.classList.remove('show');
+      bannerTimer = 0;
     },
     addKill(killer, victim, headshot, _killerTeam) {
       const row = el('div', 'killrow', feed);

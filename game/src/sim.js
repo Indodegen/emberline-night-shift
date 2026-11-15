@@ -42,8 +42,10 @@ export function createSim({ world, rng, audio, effects, hud }) {
     winner: null,
     reason: '',
     streak: 0, // the player's kills since the last death, this round
+    kd: {}, // actor id -> { k, d }, reset per match; feeds the scoreboard
   };
   const grenades = [];
+  let roster = null; // the match's actors, captured on the first damage call
   const _v = new THREE.Vector3();
 
   function siteAt(x, z) {
@@ -64,6 +66,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     state.owned = { kr7: false, longshot: false, frag: 0 };
     state.winner = null;
     state.reason = '';
+    state.kd = {};
     startRound();
   }
 
@@ -77,6 +80,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
     grenades.length = 0;
     hud.setPhase('buy', state.round);
     hud.showBuy(true, state.money, state.owned);
+    hud.hideScoreboard();
   }
 
   function endRound(winner, reason) {
@@ -91,12 +95,22 @@ export function createSim({ world, rng, audio, effects, hud }) {
     hud.banner(winner === 'vanguard' ? 'VANGUARD WINS THE ROUND' : 'SENTINEL WINS THE ROUND', reason);
     audio.roundEnd(winner === 'vanguard');
     hud.showBuy(false);
+    if (roster) {
+      hud.showScoreboard(
+        `ROUND ${state.round} — ${winner === 'vanguard' ? 'VANGUARD' : 'SENTINEL'} WINS`,
+        roster.map((a) => {
+          const row = state.kd[a.id] || { k: 0, d: 0 };
+          return { name: a.name || 'YOU', team: a.team, k: row.k, d: row.d };
+        }),
+      );
+    }
   }
 
   function endMatch(winner) {
     state.phase = 'match';
     state.winner = winner;
     hud.showOverlay('match', winner === 'vanguard' ? 'Vanguard takes the yard.' : 'Sentinel holds the yard.', state.score);
+    hud.hideScoreboard();
     audio.roundEnd(winner === 'vanguard');
   }
 
@@ -167,6 +181,7 @@ export function createSim({ world, rng, audio, effects, hud }) {
   }
 
   function damageActor(target, amount, part, shooter, ctx) {
+    if (!roster && ctx && ctx.actors) roster = ctx.actors;
     if (!target.alive || state.phase !== 'live') return 'none';
     if (target.isPlayer) amount = Math.max(1, Math.round(amount * playerDamageScale()));
     target.hp -= amount;
@@ -190,6 +205,14 @@ export function createSim({ world, rng, audio, effects, hud }) {
     }
     const killerName = shooter ? shooter.name || 'YOU' : 'GRENADE';
     hud.addKill(killerName, target.name || 'YOU', part === 'head', shooter ? shooter.team : null);
+    // Kill bookkeeping for the round-end scoreboard: a kill for the shooter,
+    // a death for the victim. Keyed by actor id; reset per match.
+    if (shooter) {
+      const k = state.kd[shooter.id] || (state.kd[shooter.id] = { k: 0, d: 0 });
+      k.k += 1;
+    }
+    const v = state.kd[target.id] || (state.kd[target.id] = { k: 0, d: 0 });
+    v.d += 1;
     if (shooter && shooter.isPlayer && !target.isPlayer) {
       state.money += KILL_BONUS;
       state.streak += 1;
